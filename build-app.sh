@@ -5,6 +5,11 @@
 # Set CODESIGN_IDENTITY to force a specific identity.
 set -e
 cd "$(dirname "$0")"
+# Prefer the full Xcode toolchain when available: the Command Line Tools alone
+# fail to drive SwiftPM's default build system on recent macOS betas.
+if [ -z "$DEVELOPER_DIR" ] && [ -d /Applications/Xcode.app/Contents/Developer ]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
 swift build -c release --product FireTVRemoteApp
 swift build -c release --product FireTVHelper
 APP="FireTVRemoteBridge.app"
@@ -23,6 +28,10 @@ cat > "$APP/Contents/Library/LaunchDaemons/com.uaaa.firetv-remote-bridge.helper.
 PLIST
 cp .build/release/FireTVRemoteApp "$APP/Contents/MacOS/FireTVRemoteBridge"
 cp icon/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# UI localisations (English source keys + Japanese table)
+for lproj in Resources/*.lproj; do
+  [ -d "$lproj" ] && cp -R "$lproj" "$APP/Contents/Resources/"
+done
 # --- microphone: HAL driver, install/uninstall scripts, bundled libopus
 ./hal/build-driver.sh >/dev/null
 cp -R hal/build/FireTVRemoteMicrophone.driver "$APP/Contents/Resources/"
@@ -49,6 +58,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>FireTVRemoteBridge</string>
   <key>CFBundleDisplayName</key><string>Fire TV Remote Studio</string>
   <key>CFBundleIdentifier</key><string>com.uaaa.firetv-remote-bridge</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>ja</string></array>
   <key>CFBundleVersion</key><string>1</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -56,6 +67,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSInputMonitoringUsageDescription</key><string>Fire TV Remote Studio reads button presses from your paired Fire TV remote.</string>
+  <key>NSAccessibilityUsageDescription</key><string>Fire TV Remote Studio sends the keyboard shortcuts and media keys you assign to the remote.</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSHumanReadableCopyright</key><string>MIT License. Not affiliated with Amazon.</string>
 </dict></plist>

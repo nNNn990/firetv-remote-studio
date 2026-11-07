@@ -8,9 +8,13 @@
 #include <mach/mach_time.h>
 
 micring_t *micring_open_writer(void) {
+    /* Refuse to follow a pre-planted symlink in the shared (world-writable) dir. */
+    struct stat dirst;
+    if (lstat(MICRING_DIR, &dirst) == 0 && S_ISLNK(dirst.st_mode)) { unlink(MICRING_DIR); }
     mkdir(MICRING_DIR, 0777);
     chmod(MICRING_DIR, 01777);
-    int fd = open(MICRING_PATH, O_RDWR | O_CREAT, 0644);
+    /* O_NOFOLLOW: never open through a symlink an attacker may have planted. */
+    int fd = open(MICRING_PATH, O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0644);
     if (fd < 0) return NULL;
     if (ftruncate(fd, (off_t)MICRING_FILE_SIZE) != 0) { close(fd); return NULL; }
     fchmod(fd, 0644);

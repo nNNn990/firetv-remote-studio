@@ -4,7 +4,7 @@ import ServiceManagement
 import FireTVCore
 
 struct SheetFrame<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let width: CGFloat
     let height: CGFloat
     @ViewBuilder let content: Content
@@ -14,7 +14,7 @@ struct SheetFrame<Content: View>: View {
             HStack {
                 Text(title).font(Theme.title)
                 Spacer()
-                Button("完了") { dismiss() }.keyboardShortcut(.defaultAction).controlSize(.small)
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction).controlSize(.small)
             }
             .padding(.horizontal, Theme.s4).frame(height: 44)
             Divider()
@@ -31,26 +31,26 @@ struct LayersSheet: View {
     @EnvironmentObject var editor: EditorState
     @State private var confirmDelete: Int?
     var body: some View {
-        SheetFrame(title: "レイヤー", width: 540, height: 360) {
+        SheetFrame(title: "Layer", width: 540, height: 360) {
             VStack(spacing: 0) {
                 List {
                     ForEach(ctl.config.layers.indices, id: \.self) { i in
                         HStack(spacing: Theme.s2) {
-                            Circle().fill(ctl.activeLayers.contains(i) ? Theme.accent : Theme.border).frame(width: 7, height: 7).help(ctl.activeLayers.contains(i) ? "現在有効" : "")
+                            Circle().fill(ctl.activeLayers.contains(i) ? Theme.accent : Theme.border).frame(width: 7, height: 7).help(ctl.activeLayers.contains(i) ? "Currently enabled" : "")
                             Text("\(i)").font(Theme.mono).foregroundStyle(Theme.text2).frame(width: 16)
-                            TextField("名前", text: Binding(get: { ctl.config.layers[safe: i]?.name ?? "" },
+                            TextField("Name", text: Binding(get: { ctl.config.layers[safe: i]?.name ?? "" },
                                                            set: { v in ctl.mutate { c in if c.layers.indices.contains(i) { c.layers[i].name = v } } }))
                                 .textFieldStyle(.roundedBorder).frame(width: 160)
-                            Text("\(ctl.config.layers[i].bindings.count) 件").font(Theme.caption).foregroundStyle(Theme.text2).frame(width: 36)
-                            if i == ctl.config.defaultLayer { Label("デフォルト", systemImage: "star.fill").font(Theme.caption).foregroundStyle(Theme.accent).labelStyle(.titleAndIcon) }
-                            else { Button("デフォルトに") { ctl.mutate { $0.defaultLayer = i } } }
+                            Text("\(ctl.config.layers [i] .bindings.count)").font(Theme.caption).foregroundStyle(Theme.text2).frame(width: 36)
+                            if i == ctl.config.defaultLayer { Label("Default", systemImage: "star.fill").font(Theme.caption).foregroundStyle(Theme.accent).labelStyle(.titleAndIcon) }
+                            else { Button("Set as default") { ctl.mutate { $0.defaultLayer = i } } }
                             Spacer()
                             Menu {
-                                Button("このレイヤーを編集") { editor.editingLayer = i; editor.showLayers = false }
-                                Button("複製") { ctl.mutate { _ = $0.duplicateLayer(i) } }
-                                Button("割り当てをすべて消去") { ctl.mutate { $0.resetLayer(i) } }
+                                Button("Edit this layer") { editor.editingLayer = i; editor.showLayers = false }
+                                Button("Duplicate") { ctl.mutate { _ = $0.duplicateLayer(i) } }
+                                Button("Clear all assignments") { ctl.mutate { $0.resetLayer(i) } }
                                 Divider()
-                                Button("削除", role: .destructive) { confirmDelete = i }.disabled(i == 0)
+                                Button("Delete", role: .destructive) { confirmDelete = i }.disabled(i == 0)
                             } label: { Image(systemName: "ellipsis.circle") }.menuStyle(.borderlessButton).frame(width: 24)
                         }
                         .controlSize(.small)
@@ -59,17 +59,17 @@ struct LayersSheet: View {
                 }
                 Divider()
                 HStack {
-                    Button { ctl.mutate { _ = $0.addLayer() } } label: { Label("レイヤーを追加", systemImage: "plus") }
+                    Button { ctl.mutate { _ = $0.addLayer() } } label: { Label("Add Layer", systemImage: "plus") }
                     Spacer()
-                    Text("上の番号ほど優先。未設定のボタンは下位レイヤーを継承します。").font(Theme.caption).foregroundStyle(Theme.text3)
+                    Text("Priority is given to the number above. Unconfigured buttons inherit the lower layer.").font(Theme.caption).foregroundStyle(Theme.text3)
                 }
                 .controlSize(.small).padding(Theme.s3)
             }
         }
-        .alert("レイヤー \(confirmDelete ?? 0) を削除しますか？", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } })) {
-            Button("削除", role: .destructive) { if let i = confirmDelete { ctl.mutate { _ = $0.removeLayer(i) } } }
-            Button("キャンセル", role: .cancel) {}
-        } message: { Text("このレイヤーを参照する MO/TG/TO/DF は「なし」になります。") }
+        .alert("Are you sure you want to delete layer \(String(confirmDelete ?? 0))?", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } })) {
+            Button("Delete", role: .destructive) { if let i = confirmDelete { ctl.mutate { _ = $0.removeLayer(i) } } }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("MO/TG/TO/DF referencing this layer will be None.") }
     }
 }
 
@@ -79,7 +79,7 @@ struct MacrosSheet: View {
     @EnvironmentObject var ctl: RemoteController
     @EnvironmentObject var editor: EditorState
     var body: some View {
-        SheetFrame(title: "マクロ", width: 660, height: 440) {
+        SheetFrame(title: "Macros", width: 660, height: 440) {
             HStack(spacing: 0) {
                 VStack(spacing: 0) {
                     List(ctl.config.macros, selection: $editor.editingMacro) { m in
@@ -88,7 +88,7 @@ struct MacrosSheet: View {
                     .listStyle(.inset)
                     Divider()
                     HStack {
-                        Button { let m = Macro(name: "マクロ \(ctl.config.macros.count + 1)"); ctl.mutate { $0.macros.append(m) }; editor.editingMacro = m.id } label: { Image(systemName: "plus") }
+                        Button { let m = Macro(name: "Macro\(ctl.config.macros.count + 1)"); ctl.mutate { $0.macros.append(m) }; editor.editingMacro = m.id } label: { Image(systemName: "plus") }
                         Button { if let id = editor.editingMacro { editor.editingMacro = nil; ctl.mutate { $0.macros.removeAll { $0.id == id } } } } label: { Image(systemName: "minus") }.disabled(editor.editingMacro == nil)
                         Spacer()
                     }.controlSize(.small).padding(6)
@@ -99,8 +99,8 @@ struct MacrosSheet: View {
                     MacroEditor(macroID: id)
                 } else {
                     VStack(spacing: 6) {
-                        Text("マクロを選択するか + で作成").font(Theme.body).foregroundStyle(Theme.text2)
-                        Text("複数のアクションを順に実行し、各ステップの後に遅延を入れられます").font(Theme.caption).foregroundStyle(Theme.text3)
+                        Text("Select macro or create with +").font(Theme.body).foregroundStyle(Theme.text2)
+                        Text("Run multiple actions in sequence; delay after each step").font(Theme.caption).foregroundStyle(Theme.text3)
                     }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -119,11 +119,11 @@ struct MacroEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.s3) {
             HStack {
-                TextField("名前", text: Binding(get: { macro.name }, set: { v in edit { $0.name = v } })).textFieldStyle(.roundedBorder).frame(width: 220)
+                TextField("Name", text: Binding(get: { macro.name }, set: { v in edit { $0.name = v } })).textFieldStyle(.roundedBorder).frame(width: 220)
                 Spacer()
-                Button { ctl.executor.execute(.macro(id: macroID)) } label: { Label("テスト実行", systemImage: "play.fill") }.disabled(macro.steps.isEmpty)
+                Button { ctl.executor.execute(.macro(id: macroID)) } label: { Label("Run Test", systemImage: "play.fill") }.disabled(macro.steps.isEmpty)
             }.controlSize(.small)
-            SectionHeader(title: "ステップ")
+            SectionHeader(title: "Step")
             List {
                 ForEach(Array(macro.steps.enumerated()), id: \.element.id) { i, step in
                     HStack(spacing: Theme.s2) {
@@ -135,11 +135,11 @@ struct MacroEditor: View {
                         .buttonStyle(.plain)
                         .popover(isPresented: Binding(get: { editingStep == step.id }, set: { if !$0 { editingStep = nil } })) {
                             VStack(alignment: .leading, spacing: Theme.s3) {
-                                SectionHeader(title: "ステップ \(i + 1)")
+                                SectionHeader(title: "Step \(String(i + 1))")
                                 StepActionEditor(action: Binding(get: { step.action }, set: { a in edit { if $0.steps.indices.contains(i) { $0.steps[i].action = a } } }))
                             }.padding(Theme.s4).frame(width: 340)
                         }
-                        Text("遅延").font(Theme.caption).foregroundStyle(Theme.text2)
+                        Text("Delay").font(Theme.caption).foregroundStyle(Theme.text2)
                         TextField("ms", value: Binding(get: { step.delayMs }, set: { v in edit { if $0.steps.indices.contains(i) { $0.steps[i].delayMs = max(0, v) } } }), format: .number)
                             .textFieldStyle(.roundedBorder).frame(width: 60)
                         Text("ms").font(Theme.caption).foregroundStyle(Theme.text2)
@@ -154,15 +154,15 @@ struct MacroEditor: View {
             HStack {
                 Menu {
                     ForEach(ActionKind.allCases.filter { $0 != .macro && $0 != .transparent }) { k in
-                        Button { if let a = k.defaultAction(firstMacro: nil) { edit { $0.steps.append(MacroStep(action: a)) }; editingStep = macro.steps.last?.id } } label: { Label(k.rawValue, systemImage: k.icon) }
+                        Button { if let a = k.defaultAction(firstMacro: nil) { edit { $0.steps.append(MacroStep(action: a)) }; editingStep = macro.steps.last?.id } } label: { Label(k.display, systemImage: k.icon) }
                     }
-                } label: { Label("ステップを追加", systemImage: "plus") }.frame(width: 150)
+                } label: { Label("Add step", systemImage: "plus") }.frame(width: 150)
                 Spacer()
             }.controlSize(.small)
         }
         .padding(Theme.s4)
     }
-    func describe(_ a: Action) -> String { if case .shortcut(let n) = a { return n.isEmpty ? "ショートカット未選択" : n }; return a.display }
+    func describe(_ a: Action) -> String { if case .shortcut(let n) = a { return n.isEmpty ? String(localized: "Shortcut not selected") : n }; return a.display }
 }
 
 /// Action editor with its own kind picker (for macro steps).
@@ -170,8 +170,8 @@ struct StepActionEditor: View {
     @Binding var action: Action
     @EnvironmentObject var ctl: RemoteController
     var body: some View {
-        Picker("種類", selection: Binding(get: { ActionKind.of(action) }, set: { k in if k != ActionKind.of(action), let a = k.defaultAction(firstMacro: nil) { action = a } })) {
-            ForEach(ActionKind.allCases.filter { $0 != .macro && $0 != .transparent }) { k in Label(k.rawValue, systemImage: k.icon).tag(k) }
+        Picker("Type", selection: Binding(get: { ActionKind.of(action) }, set: { k in if k != ActionKind.of(action), let a = k.defaultAction(firstMacro: nil) { action = a } })) {
+            ForEach(ActionKind.allCases.filter { $0 != .macro && $0 != .transparent }) { k in Label(k.display, systemImage: k.icon).tag(k) }
         }.labelsHidden()
         ActionEditor(action: $action)
     }
@@ -182,30 +182,31 @@ struct StepActionEditor: View {
 struct DeviceSheet: View {
     @EnvironmentObject var ctl: RemoteController
     var body: some View {
-        SheetFrame(title: "デバイス", width: 660, height: 470) {
+        SheetFrame(title: "Device", width: 660, height: 470) {
             HStack(spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.s3) {
-                        SectionHeader(title: "接続")
-                        KVRow(key: "製品", value: "Amazon Remote (Fire TV Stick 4K Select)")
-                        KVRow(key: "Vendor / Product", value: "0x0171 / 0x042F", mono: true)
-                        KVRow(key: "状態", value: status)
-                        KVRow(key: "最後のレポート", value: ctl.lastRawReport, mono: true)
-                        KVRow(key: "最後のボタン", value: ctl.lastPressed?.displayName ?? "—")
-                        KVRow(key: "未知のコード", value: ctl.lastUnknownCode?.description ?? "—", mono: true)
+                        SectionHeader(title: "Connect")
+                        KVRow(key: "Model", value: ctl.connectedModel?.name ?? "—")
+                        KVRow(key: "Vendor / Product", value: ctl.connectedProductID.map { String(format: "0x0171 / 0x%04X", $0) } ?? "—", mono: true)
+                        KVRow(key: "App buttons", value: ctl.connectedModel.map { $0.hasAppButtons ? "A1–A4" : String(localized: "None") } ?? "—")
+                        KVRow(key: "Status", value: status)
+                        KVRow(key: "Last report", value: ctl.lastRawReport, mono: true)
+                        KVRow(key: "Last button", value: ctl.lastPressed?.displayName ?? "—")
+                        KVRow(key: "Unknown code", value: ctl.lastUnknownCode?.description ?? "—", mono: true)
                         HStack {
-                            Button(ctl.isMonitoring ? "監視を停止" : "監視を開始") { ctl.setMonitoring(!ctl.isMonitoring) }
-                            Menu("疑似入力") {
-                                Button("A1 を押す") { ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA1, 0, 0]); ctl.inject(reportID: 0xEF, bytes: [0xEF, 0, 0, 0]) }
-                                Button("A2 を押す") { ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA2, 0, 0]); ctl.inject(reportID: 0xEF, bytes: [0xEF, 0, 0, 0]) }
-                                Button("TV を押す") { ctl.inject(reportID: 0x02, bytes: [0x02, 0x8D, 0, 0, 0]); ctl.inject(reportID: 0x02, bytes: [0x02, 0, 0, 0, 0]) }
+                            Button(ctl.isMonitoring ? String(localized: "Stop monitoring") : String(localized: "Start monitoring")) { ctl.setMonitoring(!ctl.isMonitoring) }
+                            Menu("Simulated input") {
+                                Button("Press A1") { ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA1, 0, 0]); ctl.inject(reportID: 0xEF, bytes: [0xEF, 0, 0, 0]) }
+                                Button("Press A2") { ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA2, 0, 0]); ctl.inject(reportID: 0xEF, bytes: [0xEF, 0, 0, 0]) }
+                                Button("Press TV") { ctl.inject(reportID: 0x02, bytes: [0x02, 0x8D, 0, 0, 0]); ctl.inject(reportID: 0x02, bytes: [0x02, 0, 0, 0, 0]) }
                             }.frame(width: 90)
                         }.controlSize(.small)
                         Divider()
-                        SectionHeader(title: "ボタンの対応状況")
-                        Text("「学習」を押してから実機でそのボタンを押すと HID コードを記録します。キーボードコードとして届くボタンは macOS が処理するため割り当て不可のままです。").font(Theme.caption).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
+                        SectionHeader(title: "Button status")
+                        Text("Press \"Learn\" and then press the button on the actual machine to record the hid code. Buttons that arrive as keyboard codes remain unassignable because they are processed by macOS.").font(Theme.caption).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
                         if let l = ctl.learningButton {
-                            HStack { ProgressView().controlSize(.small); Text("「\(l.displayName)」を実機で押してください…").font(Theme.caption); Spacer(); Button("キャンセル") { ctl.learningButton = nil }.controlSize(.small) }
+                            HStack { ProgressView().controlSize(.small); Text("Press \(l.displayName) on the actual machine...").font(Theme.caption); Spacer(); Button("Cancel") { ctl.learningButton = nil }.controlSize(.small) }
                                 .padding(8).background(Theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.radius))
                         }
                         ForEach(RemoteButton.allCases) { b in
@@ -215,15 +216,15 @@ struct DeviceSheet: View {
                                 Text(info.code?.description ?? "—").font(Theme.mono).foregroundStyle(Theme.text2).frame(width: 40, alignment: .leading)
                                 Group {
                                     switch info.restriction {
-                                    case .none: Label("割り当て可", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.success)
-                                    case .osHandled: Label("macOS 標準キー", systemImage: "lock.fill").foregroundStyle(Theme.warning)
-                                    case .codeUnknown: Label("未学習", systemImage: "questionmark.circle").foregroundStyle(Theme.text3)
+                                    case .none: Label("Assignable", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.success)
+                                    case .osHandled: Label("macOS Standard Key", systemImage: "lock.fill").foregroundStyle(Theme.warning)
+                                    case .codeUnknown: Label("Not learned", systemImage: "questionmark.circle").foregroundStyle(Theme.text3)
                                     }
                                 }
                                 .lineLimit(1).fixedSize()
                                 Spacer(minLength: 4)
-                                Button("学習") { ctl.learningButton = b }.disabled(ctl.learningButton != nil || !ctl.monitor.isRunning)
-                                if ctl.config.learnedCodes[b] != nil { Button("消去") { ctl.mutate { $0.learnedCodes.removeValue(forKey: b) } } }
+                                Button("Learn") { ctl.learningButton = b }.disabled(ctl.learningButton != nil || !ctl.monitor.isRunning)
+                                if ctl.config.learnedCodes[b] != nil { Button("Clear") { ctl.mutate { $0.learnedCodes.removeValue(forKey: b) } } }
                             }
                             .font(Theme.caption).controlSize(.mini)
                         }
@@ -234,8 +235,8 @@ struct DeviceSheet: View {
                 Divider()
                 VStack(alignment: .leading, spacing: Theme.s2) {
                     HStack {
-                        SectionHeader(title: "ログ")
-                        Toggle("レポートも記録", isOn: Binding(get: { ctl.config.ui.debugLog }, set: { v in ctl.mutate { $0.ui.debugLog = v } })).controlSize(.mini).toggleStyle(.checkbox)
+                        SectionHeader(title: "Logs")
+                        Toggle("The report is also recorded", isOn: Binding(get: { ctl.config.ui.debugLog }, set: { v in ctl.mutate { $0.ui.debugLog = v } })).controlSize(.mini).toggleStyle(.checkbox)
                     }
                     ScrollViewReader { proxy in
                         ScrollView {
@@ -254,10 +255,10 @@ struct DeviceSheet: View {
     }
     var status: String {
         switch ctl.hidStatus {
-        case .connected(let n): return "\(n) — Bluetooth 接続中"
-        case .waitingForDevice: return "未接続（待機中）"
+        case .connected(let n): return String(localized: "\(n) — Bluetooth connected")
+        case .waitingForDevice: return String(localized: "Not connected (waiting)")
         case .blocked(let why): return "⚠ " + why
-        case .stopped: return "監視停止中"
+        case .stopped: return String(localized: "Not monitoring")
         }
     }
 }
@@ -271,49 +272,122 @@ struct SettingsView: View {
     @State private var loginError: String?
     @State private var confirmReset = false
     @State private var axTrusted = ActionExecutor.accessibilityTrusted
-    @State private var imTrusted = HIDMonitor.hasInputMonitoringAccess
+    @State private var imAccess = HIDMonitor.inputMonitoringAccess
+    @State private var imCheckedAt: Date?
+    @State private var language = LanguageManager.current
+    @State private var showLanguageRestart = false
     var body: some View {
         Form {
-            Section("一般") {
-                Toggle("リモコンの監視を有効にする", isOn: Binding(get: { ctl.config.ui.monitoringEnabled }, set: { ctl.setMonitoring($0) }))
-                Toggle("ログイン時に自動起動", isOn: $loginItem)
+            Section("General") {
+                Toggle("Enable remote monitoring", isOn: Binding(get: { ctl.config.ui.monitoringEnabled }, set: { ctl.setMonitoring($0) }))
+                Toggle("Autostart on login", isOn: $loginItem)
                     .onChange(of: loginItem) { _, on in
                         do { if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }; loginError = nil }
                         catch { loginError = error.localizedDescription; loginItem = SMAppService.mainApp.status == .enabled }
                     }
                 if let e = loginError { Text(e).font(Theme.caption).foregroundStyle(Theme.danger) }
-                Picker("外観", selection: $editor.appearance) { ForEach(EditorState.Appearance.allCases) { Text($0.label).tag($0) } }
+                Picker("Appearance", selection: $editor.appearance) { ForEach(EditorState.Appearance.allCases) { Text($0.label).tag($0) } }
+                LabeledContent("Language") {
+                    Picker("Language", selection: $language) {
+                        ForEach(AppLanguage.allCases) { l in Text(l.label).tag(l) }
+                    }
+                    .labelsHidden()
+                }
+                .onChange(of: language) { _, new in
+                    guard new != LanguageManager.current else { return }
+                    LanguageManager.set(new)
+                    showLanguageRestart = true
+                }
+                if language != LanguageManager.launchedLanguage {
+                    Text("Restart the app to apply the new language.")
+                        .font(Theme.caption).foregroundStyle(Theme.warning)
+                }
             }
-            Section("マイク（Fire TV Remote Microphone）") {
+            Section("Microphone (Fire TV Remote Microphone)") {
                 MicSettings()
             }
-            Section("排他モード（すべてのボタンをリマップ）") {
+            Section("Exclusive mode (remap all buttons)") {
                 ExclusiveModeSettings()
             }
-            Section("権限") {
+            Section("Permissions") {
                 LabeledContent {
-                    HStack { Button("許可を要求") { HIDMonitor.requestInputMonitoringAccess() }; Button("システム設定") { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!) }; Button("再確認") { imTrusted = HIDMonitor.hasInputMonitoringAccess } }
-                } label: { Label(imTrusted ? "入力監視: 許可済み" : "入力監視: 未許可（リモコン読み取りに必要）", systemImage: imTrusted ? "checkmark.circle.fill" : "xmark.circle").foregroundStyle(imTrusted ? Theme.success : Theme.warning) }
-                LabeledContent {
-                    HStack { Button("許可を要求") { ActionExecutor.promptAccessibility(); axTrusted = ActionExecutor.accessibilityTrusted }; Button("再確認") { axTrusted = ActionExecutor.accessibilityTrusted } }
-                } label: { Label(axTrusted ? "アクセシビリティ: 許可済み" : "アクセシビリティ: 未許可（キー送信に必要）", systemImage: axTrusted ? "checkmark.circle.fill" : "xmark.circle").foregroundStyle(axTrusted ? Theme.success : Theme.warning) }
-            }
-            Section("設定データ") {
-                LabeledContent("ファイル") {
-                    HStack { Text(ctl.store.url.path).font(Theme.mono).lineLimit(1).truncationMode(.middle); Button("Finder で表示") { NSWorkspace.shared.activateFileViewerSelecting([ctl.store.url]) } }
+                    HStack {
+                        Button("Request permission") { HIDMonitor.requestInputMonitoringAccess(); refreshInputMonitoring() }
+                        Button("System Settings") { openInputMonitoringSettings() }
+                        Button("Re-check") { refreshInputMonitoring() }
+                    }
+                } label: {
+                    Label(inputMonitoringLabel, systemImage: inputMonitoringIcon)
+                        .foregroundStyle(inputMonitoringColor)
                 }
-                if let e = ctl.saveError { Text("保存エラー: \(e)").foregroundStyle(Theme.danger) }
+                Text("macOS applies Input Monitoring changes only after the app is restarted. After enabling Fire TV Remote Studio in System Settings, quit and reopen the app. A build signed ad-hoc loses the grant on every rebuild; remove it with − in the list and add it again, or sign with a stable identity.")
+                    .font(Theme.caption).foregroundStyle(Theme.text3).fixedSize(horizontal: false, vertical: true)
+                if let imCheckedAt {
+                    Text("Last checked \(imCheckedAt.formatted(date: .omitted, time: .standard))")
+                        .font(Theme.caption).foregroundStyle(Theme.text3)
+                }
+                LabeledContent {
+                    HStack { Button("Request permission") { ActionExecutor.promptAccessibility(); axTrusted = ActionExecutor.accessibilityTrusted }; Button("Re-check") { axTrusted = ActionExecutor.accessibilityTrusted } }
+                } label: { Label(axTrusted ? String(localized: "Accessibility - Allowed") : String(localized: "Accessibility - Not allowed (required to send keys)"), systemImage: axTrusted ? "checkmark.circle.fill" : "xmark.circle").foregroundStyle(axTrusted ? Theme.success : Theme.warning) }
+            }
+            Section("Config data") {
+                LabeledContent("Files") {
+                    HStack { Text(ctl.store.url.path).font(Theme.mono).lineLimit(1).truncationMode(.middle); Button("View in Finder") { NSWorkspace.shared.activateFileViewerSelecting([ctl.store.url]) } }
+                }
+                if let e = ctl.saveError { Text("Save error: \(e)").foregroundStyle(Theme.danger) }
                 ForEach(ctl.startupNotices, id: \.self) { Text($0).font(Theme.caption).foregroundStyle(Theme.warning) }
-                Button("初期設定に戻す…", role: .destructive) { confirmReset = true }
+                Button("Reset to defaults…", role: .destructive) { confirmReset = true }
             }
         }
         .formStyle(.grouped)
         .controlSize(.small)
         .frame(width: 520, height: 420)
-        .alert("すべての設定を初期状態に戻しますか？", isPresented: $confirmReset) {
-            Button("戻す", role: .destructive) { ctl.resetToDefaults() }
-            Button("キャンセル", role: .cancel) {}
-        } message: { Text("レイヤー・割り当て・マクロ・学習したコードがすべて消えます。") }
+        .alert("Are you sure you want to reset all settings to the initial state?", isPresented: $confirmReset) {
+            Button("Reset", role: .destructive) { ctl.resetToDefaults() }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Layers, Assignments, Macros, and all learned code will disappear.") }
+        .alert("Restart required", isPresented: $showLanguageRestart) {
+            Button("Restart Now") { relaunchApp() }
+            Button("Later", role: .cancel) {}
+        } message: { Text("The display language changes after the app restarts.") }
+    }
+
+    private var inputMonitoringLabel: String {
+        switch imAccess {
+        case .granted: return String(localized: "Input monitoring: allowed")
+        case .denied: return String(localized: "Input monitoring: denied (required to read remote)")
+        case .unknown: return String(localized: "Input monitoring: not determined")
+        }
+    }
+    private var inputMonitoringIcon: String {
+        switch imAccess {
+        case .granted: return "checkmark.circle.fill"
+        case .denied: return "xmark.circle.fill"
+        case .unknown: return "questionmark.circle.fill"
+        }
+    }
+    private var inputMonitoringColor: Color {
+        switch imAccess {
+        case .granted: return Theme.success
+        case .denied: return Theme.danger
+        case .unknown: return Theme.warning
+        }
+    }
+    private func refreshInputMonitoring() {
+        imAccess = HIDMonitor.inputMonitoringAccess
+        imCheckedAt = Date()
+    }
+    private func openInputMonitoringSettings() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
+    }
+    private func relaunchApp() {
+        guard Bundle.main.bundleURL.pathExtension == "app" else { return }
+        let path = Bundle.main.bundleURL.path
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = ["-c", "sleep 1.0; /usr/bin/open -n \"\(path)\""]
+        try? p.run()
+        NSApp.terminate(nil)
     }
 }
 
@@ -325,30 +399,30 @@ struct ExclusiveModeSettings: View {
     @State private var error: String?
     var body: some View {
         Group {
-            Text("通常モードでは macOS が先に処理するボタン（音量・方向キーなど）は割り当てできません。排他モードでは同梱の helper（root 権限の LaunchDaemon）がリモコンだけを専有し、全ボタンを割り当て可能にします。他のキーボードやマウスには影響しません。").font(Theme.caption).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
+            Text("In normal mode, buttons macOS handles first (volume, arrows, etc.) cannot be assigned. In exclusive mode, the bundled helper (root LaunchDaemon) seizes only the remote, allowing all buttons to be assigned. Other keyboards/mice are unaffected.").font(Theme.caption).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
             LabeledContent("helper") {
                 HStack {
                     Text(stateText).font(Theme.caption).foregroundStyle(state == .enabled ? Theme.success : Theme.warning)
-                    if state != .enabled { Button("登録") { register() } }
-                    if state == .requiresApproval { Button("システム設定を開く") { HelperClient.openApprovalSettings() } }
-                    Button("再確認") { refresh() }
-                    if state == .enabled { Button("登録解除") { try? HelperClient.unregister(); refresh() } }
+                    if state != .enabled { Button("Register") { register() } }
+                    if state == .requiresApproval { Button("Open System Settings") { HelperClient.openApprovalSettings() } }
+                    Button("Re-check") { refresh() }
+                    if state == .enabled { Button("Unregister") { try? HelperClient.unregister(); refresh() } }
                 }
             }
             if let e = error { Text(e).font(Theme.caption).foregroundStyle(Theme.danger) }
-            Toggle("排他モードを使う（helper が有効なとき）", isOn: Binding(get: { ctl.exclusiveRequested }, set: { ctl.setExclusive($0) }))
+            Toggle("Use exclusive mode (when helper enabled)", isOn: Binding(get: { ctl.exclusiveRequested }, set: { ctl.setExclusive($0) }))
                 .disabled(state != .enabled)
-            Text(ctl.exclusiveActive ? "● 排他モードで動作中（リモコンは macOS から見えません。アプリ終了・監視停止で解放）" : "○ 通常モードで動作中").font(Theme.caption).foregroundStyle(ctl.exclusiveActive ? Theme.success : Theme.text2)
+            Text(ctl.exclusiveActive ? String(localized: "Operating in ● exclusive mode (remote is not visible from macOS. Unlock by exiting the app and stopping monitoring)") : String(localized: "Operating in ○ Normal Mode")).font(Theme.caption).foregroundStyle(ctl.exclusiveActive ? Theme.success : Theme.text2)
         }
         .onAppear { refresh() }
     }
     var stateText: String {
         switch state {
-        case .enabled: return "有効"
-        case .requiresApproval: return "承認待ち: システム設定 → 一般 → ログイン項目と機能拡張 → 「バックグラウンドでの実行を許可」で FireTVRemoteBridge をオン"
-        case .notRegistered: return "未登録"
-        case .notFound: return "helper が見つかりません（build-app.sh で再ビルド）"
-        case .unknown: return "不明"
+        case .enabled: return String(localized: "Enabled")
+        case .requiresApproval: return String(localized: "Pending approval: enable FireTVRemoteBridge in System Settings → General → Login Items & Extensions → \"Allow in background\"")
+        case .notRegistered: return String(localized: "Not registered")
+        case .notFound: return String(localized: "helper not found (rebuild in build-app.sh)")
+        case .unknown: return String(localized: "Unknown")
         }
     }
     func refresh() { state = HelperClient.installState; if state == .enabled, ctl.exclusiveRequested, !ctl.exclusiveActive, ctl.config.ui.monitoringEnabled { ctl.setExclusive(true) } }
@@ -366,40 +440,52 @@ struct MicSettings: View {
     @State private var confirmUninstall = false
     var body: some View {
         Group {
-            Text("リモコンのマイクボタンを押している間だけ、声が macOS の入力デバイス「Fire TV Remote Microphone」に入ります（Push-to-Talk）。Discord や QuickTime などで一度このデバイスを選べば、以降はボタン操作だけで使えます。").font(Theme.caption).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
-            Toggle("マイク機能を有効にする", isOn: Binding(get: { ctl.micEnabled }, set: { ctl.setMicEnabled($0) }))
-            LabeledContent("ドライバ") {
+            Text("Only while pressing the microphone button on the remote control, the voice enters the macOS input device \"Fire TV Remote Microphone\" (Push-to-Talk). Once you've selected this device in Discord, QuickTime, and more, you can use it with the push of a button.").font(Theme.caption).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
+            Toggle("Enable microphone feature", isOn: Binding(get: { ctl.micEnabled }, set: { ctl.setMicEnabled($0) }))
+            LabeledContent("Driver") {
                 HStack {
-                    Label(installed ? (present ? "導入済み・認識中" : "導入済み（デバイス未認識: 再起動で復旧）") : "未導入", systemImage: installed && present ? "checkmark.circle.fill" : "xmark.circle")
+                    Label(installed ? (present ? String(localized: "Installed and recognized") : String(localized: "Installed (device not recognized: recover after restart)")) : String(localized: "Not installed"), systemImage: installed && present ? "checkmark.circle.fill" : "xmark.circle")
                         .font(Theme.caption).foregroundStyle(installed && present ? Theme.success : Theme.warning)
-                    Button(installed ? "修復（再インストール）" : "インストール…") { install() }.disabled(busy)
-                    Button("再確認") { refresh() }
-                    if installed { Button("アンインストール…") { confirmUninstall = true }.disabled(busy) }
+                    Button(installed ? String(localized: "Repair (reinstall)") : String(localized: "Install")) { install() }.disabled(busy)
+                    Button("Re-check") { refresh() }
+                    if installed { Button("Uninstall…") { confirmUninstall = true }.disabled(busy) }
                 }
             }
             HStack(spacing: 10) {
                 Text(stateText).font(Theme.caption).foregroundStyle(ctl.micState == .listening ? Theme.accent : Theme.text2)
                 if ctl.micState == .listening || ctl.micStats.packets > 0 {
-                    Text("パケット \(ctl.micStats.packets) · 補間 \(ctl.micStats.plcFrames) · エラー \(ctl.micStats.decodeErrors)").font(Theme.caption).foregroundStyle(Theme.text3)
+                    Text("Packet\(ctl.micStats.packets) · Interpolation\(ctl.micStats.plcFrames) · Error\(ctl.micStats.decodeErrors)").font(Theme.caption).foregroundStyle(Theme.text3)
                 }
             }
             if let e = ctl.micLastError { Text(e).font(Theme.caption).foregroundStyle(Theme.danger) }
             if let m = message { Text(m).font(Theme.caption).foregroundStyle(Theme.text2) }
-            if !ctl.micStats.ringAvailable && ctl.micEnabled { Text("共有バッファ \(ctl.mic.ringPath) を開けません。「修復」で作り直してください。").font(Theme.caption).foregroundStyle(Theme.danger) }
+            if !ctl.micStats.ringAvailable && ctl.micEnabled { Text("Cannot open shared buffer \(ctl.mic.ringPath). Recreate it with \"Repair\".").font(Theme.caption).foregroundStyle(Theme.danger) }
         }
         .onAppear { refresh() }
-        .alert("仮想マイクをアンインストールしますか？", isPresented: $confirmUninstall) {
-            Button("アンインストール", role: .destructive) { uninstall() }
-            Button("キャンセル", role: .cancel) {}
-        } message: { Text("HAL ドライバと共有バッファ、helper の登録を削除します。アプリ本体と設定は残ります。") }
+        .alert("Do you want to uninstall the virtual microphone?", isPresented: $confirmUninstall) {
+            Button("Uninstall", role: .destructive) { uninstall() }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Delete Hal driver and shared buffer, helper registration. The app body and settings will remain.") }
     }
     var stateText: String {
-        switch ctl.micState { case .disabled: return "○ 無効"; case .ready: return "● 待機中（マイクボタンで入力）"; case .listening: return "● 入力中"; case .draining: return "● 入力中（終了処理）" }
+        switch ctl.micState {
+        case .disabled: return String(localized: "○ Disabled")
+        case .ready: return String(localized: "● Waiting (enter with microphone button)")
+        case .listening: return String(localized: "● Input in progress")
+        case .draining: return String(localized: "● Input in progress (termination process)")
+        }
     }
     func refresh() { installed = RemoteController.micDriverInstalled; present = RemoteController.micDevicePresent }
     func runAsAdmin(_ script: String, args: [String], done: @escaping (String?) -> Void) {
         busy = true
         let res = Bundle.main.resourcePath ?? ""
+        // Reject paths containing characters that could break the AppleScript string or shell quoting.
+        let unsafe: (String) -> Bool = { $0.contains("\"") || $0.contains("\\") || $0.contains("\n") || $0.contains("\r") }
+        guard !unsafe(res), !unsafe(script), !args.contains(where: unsafe) else {
+            busy = false
+            done(String(localized: "Invalid path"))
+            return
+        }
         let cmd = ([res + "/" + script] + args).map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }.joined(separator: " ")
         let src = "do shell script \"/bin/sh \(cmd)\" with administrator privileges"
         DispatchQueue.global().async {
@@ -407,14 +493,14 @@ struct MicSettings: View {
             let out = NSAppleScript(source: src)?.executeAndReturnError(&err)
             DispatchQueue.main.async {
                 busy = false
-                done(err != nil ? (err?["NSAppleScriptErrorMessage"] as? String ?? "失敗") : out?.stringValue)
+                done(err != nil ? (err?["NSAppleScriptErrorMessage"] as? String ?? String(localized: "Failed")) : out?.stringValue)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { refresh(); ctl.mic.prepare() }
             }
         }
     }
     func install() {
         let drv = (Bundle.main.resourcePath ?? "") + "/FireTVRemoteMicrophone.driver"
-        runAsAdmin("install-mic-driver.sh", args: [drv]) { message = $0.map { "インストール: \($0)。デバイスが見えない場合は数秒待って「再確認」" } }
+        runAsAdmin("install-mic-driver.sh", args: [drv]) { message = $0.map { String(localized: "Installation:\($0). If the device is not visible, wait a few seconds and \"reconfirm\"") } }
     }
     func uninstall() {
         try? HelperClient.unregister()

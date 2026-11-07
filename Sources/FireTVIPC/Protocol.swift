@@ -5,8 +5,12 @@ import Security
 public enum FireTVIPC {
     public static let machServiceName = "com.uaaa.firetv-remote-bridge.helper"
     public static let daemonPlistName = "com.uaaa.firetv-remote-bridge.helper.plist"
-    public static let protocolVersion = 3
+    public static let protocolVersion = 4
     public static let vendorID = 0x0171
+    /// Every supported remote model. The app and the privileged helper must
+    /// match all of them, otherwise exclusive mode stays blind to newer remotes.
+    public static let productIDs: [Int] = FireTVRemoteModel.all.map(\.productID)
+    /// Legacy single-product constant (3rd generation). Prefer `productIDs`.
     public static let productID = 0x042F
     /// Team identifier of the running process (nil for ad-hoc / unsigned builds).
     public static var ownTeamIdentifier: String? {

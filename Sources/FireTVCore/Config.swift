@@ -55,18 +55,18 @@ public struct Config: Codable, Hashable {
     @discardableResult
     public mutating func validateAndRepair() -> [Issue] {
         var issues: [Issue] = []
-        if layers.isEmpty { layers = [Layer(name: "Layer 0")]; issues.append(Issue(message: "レイヤーが空だったため Layer 0 を作成")) }
-        if !(0..<layers.count).contains(defaultLayer) { defaultLayer = 0; issues.append(Issue(message: "デフォルトレイヤーが範囲外のため 0 に修正")) }
+        if layers.isEmpty { layers = [Layer(name: "Layer 0")]; issues.append(Issue(message: String(localized: "Layer 0 was created because the layer was empty"))) }
+        if !(0..<layers.count).contains(defaultLayer) { defaultLayer = 0; issues.append(Issue(message: String(localized: "Default layer out of range; reset to 0"))) }
         let macroIDs = Set(macros.map(\.id))
         for li in layers.indices {
             for (b, a) in layers[li].bindings {
                 switch a {
                 case .layer(let op) where !(0..<layers.count).contains(op.layer):
                     layers[li].bindings[b] = Action.none
-                    issues.append(Issue(message: "\(layers[li].name) の \(b.displayName): 存在しないレイヤー \(op.layer) への操作を解除"))
+                    issues.append(Issue(message: String(localized: "Clear \(layers[li].name) \(b.displayName): layer \(String(op.layer)) does not exist")))
                 case .macro(let id) where !macroIDs.contains(id):
                     layers[li].bindings[b] = Action.none
-                    issues.append(Issue(message: "\(layers[li].name) の \(b.displayName): 存在しないマクロを解除"))
+                    issues.append(Issue(message: String(localized: "\(b.displayName) in \(layers[li].name): macro does not exist")))
                 default: break
                 }
             }
@@ -84,7 +84,7 @@ public struct Config: Codable, Hashable {
     }
     public mutating func duplicateLayer(_ i: Int) -> Int? {
         guard layers.indices.contains(i) else { return nil }
-        var copy = layers[i]; copy.id = UUID(); copy.name += " のコピー"
+        var copy = layers[i]; copy.id = UUID(); copy.name += String(localized: " (Copy)")
         layers.append(copy)
         return layers.count - 1
     }

@@ -37,7 +37,7 @@ enum Theme {
 
 /// Section header inside the inspector.
 struct SectionHeader: View {
-    let title: String
+    let title: LocalizedStringKey
     var body: some View {
         Text(title).font(Theme.heading).foregroundStyle(Theme.text2)
             .textCase(.uppercase).kerning(0.4)
@@ -47,7 +47,7 @@ struct SectionHeader: View {
 
 /// Small rounded status pill (● text).
 struct StatusPill: View {
-    let text: String
+    let text: LocalizedStringKey
     let color: Color
     var body: some View {
         HStack(spacing: 6) {
@@ -62,7 +62,7 @@ struct StatusPill: View {
 /// Informational banner (warning / info).
 struct Banner: View {
     let icon: String
-    let text: String
+    let text: LocalizedStringKey
     var color: Color = Theme.warning
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -77,7 +77,7 @@ struct Banner: View {
 
 /// Key/value row used in inspector and device sheet.
 struct KVRow: View {
-    let key: String
+    let key: LocalizedStringKey
     let value: String
     var mono = false
     var body: some View {

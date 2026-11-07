@@ -17,19 +17,19 @@ public final class PassthroughEmitter {
     ]
     /// HID consumer-page usage → NX media key type.
     static let consumerUsages: [UInt16: (Int32, String)] = [
-        0xE9: (0, "音量+"), 0xEA: (1, "音量−"), 0xE2: (7, "ミュート"), 0xCD: (16, "再生/一時停止"), 0xB0: (16, "再生"), 0xB1: (16, "一時停止"),
-        0xB5: (17, "次へ"), 0xB6: (18, "前へ"), 0xB3: (19, "早送り"), 0xB4: (20, "巻き戻し"), 0x30: (6, "電源"),
+        0xE9: (0, "Volume Up"), 0xEA: (1, "Volume Down"), 0xE2: (7, "Mute"), 0xCD: (16, "Play/Pause"), 0xB0: (16, "Play"), 0xB1: (16, "Pause"),
+        0xB5: (17, "Next"), 0xB6: (18, "Previous"), 0xB3: (19, "Fast Forward"), 0xB4: (20, "Rewind"), 0x30: (6, "Power"),
     ]
 
     /// What macOS would do with this code, or nil when it does nothing (AC Home, Search, vendor keys…).
     public static func mapping(for c: ButtonCode) -> Mapping? {
         switch c.reportID {
         case ButtonTable.keyboardReport:
-            if let (k, l) = keyboardUsages[c.code] { return Mapping(label: l, kind: .key(k)) }
-            if c.code == 0x66 { return Mapping(label: "電源", kind: .media(6)) }
+            if let (k, l) = keyboardUsages[c.code] { return Mapping(label: String(localized: String.LocalizationValue(l)), kind: .key(k)) }
+            if c.code == 0x66 { return Mapping(label: String(localized: "Power"), kind: .media(6)) }
             return nil
         case ButtonTable.consumerReport:
-            if let (m, l) = consumerUsages[c.code] ?? consumerUsages[c.code & 0xFF] { return Mapping(label: l, kind: .media(m)) }
+            if let (m, l) = consumerUsages[c.code] ?? consumerUsages[c.code & 0xFF] { return Mapping(label: String(localized: String.LocalizationValue(l)), kind: .media(m)) }
             return nil
         default: return nil
         }

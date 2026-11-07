@@ -16,15 +16,35 @@ final class EditorState: ObservableObject {
     enum Appearance: String, CaseIterable, Identifiable {
         case system, dark, light
         var id: String { rawValue }
-        var label: String { switch self { case .system: return "システムに合わせる"; case .dark: return "ダーク"; case .light: return "ライト" } }
+        var label: String {
+            switch self {
+            case .system: return String(localized: "Fit to system")
+            case .dark: return String(localized: "Dark")
+            case .light: return String(localized: "Light")
+            }
+        }
         var scheme: ColorScheme? { switch self { case .system: return nil; case .dark: return .dark; case .light: return .light } }
     }
 }
 
 /// Kind of action shown in the inspector's type picker.
 enum ActionKind: String, CaseIterable, Identifiable {
-    case passthrough = "デフォルト動作（元の機能）", none = "無効（何もしない）", transparent = "透過（下位レイヤーを継承）", shortcut = "ショートカット", key = "キー送信", media = "メディア", app = "アプリを起動", url = "URL を開く", layer = "レイヤー操作", macro = "マクロ"
+    case passthrough = "Default Behavior (original function)", none = "Disabled (do nothing)", transparent = "Transparent (inherit lower layer)", shortcut = "Shortcuts", key = "Send Key", media = "Media", app = "Launch the app", url = "Open URL", layer = "Layer manipulation", macro = "Macros"
     var id: String { rawValue }
+    var display: String {
+        switch self {
+        case .passthrough: return String(localized: "Default Behavior (original function)")
+        case .none: return String(localized: "Disabled (do nothing)")
+        case .transparent: return String(localized: "Transparent (inherit lower layer)")
+        case .shortcut: return String(localized: "Shortcuts")
+        case .key: return String(localized: "Send Key")
+        case .media: return String(localized: "Media")
+        case .app: return String(localized: "Launch the app")
+        case .url: return String(localized: "Open URL")
+        case .layer: return String(localized: "Layer manipulation")
+        case .macro: return String(localized: "Macros")
+        }
+    }
     var icon: String {
         switch self {
         case .passthrough: return "arrow.uturn.forward"

@@ -9,16 +9,17 @@ Amazon Fire TV リモコン（Bluetooth, "Amazon Remote"）を Mac のカスタ�
 
 ![Fire TV Remote Studio](docs/screenshot.jpg)
 
-> 非公式ツールです。Amazon とは無関係です。Fire TV リモコン第 3 世代（VID `0x0171` / PID `0x042F`）で動作確認しています。
-> 他の世代は HID コードが異なる可能性がありますが、アプリ内の「ボタン学習」で未知のコードを登録できます。
+> 非公式ツールです。Amazon とは無関係です。Fire TV リモコン第 2 世代（VID `0x0171` / PID `0x0413`）と第 3 世代（VID `0x0171` / PID `0x042F`）に対応しています。
+> 第 2 世代にはアプリボタン（A1〜A4）がありません。他の世代は HID コードが異なる可能性がありますが、アプリ内の「ボタン学習」で未知のコードを登録できます。
 
 ## 機能
 
-- **全ボタンのリマップ**: アプリボタン A1〜A4、ホーム、メニュー、マイク、テレビマークに加え、排他モードでは音量・再生・方向キー・決定・戻る・電源も割り当て可
-- **アクション**: macOS ショートカット（`shortcuts` CLI の一覧から選択）／キー送信（押している間ホールド）／メディアキー／アプリ起動／URL／マクロ
+- **全ボタンのリマップ**: アプリボタン A1〜A4（第 3 世代のみ）、ホーム、メニュー、マイク、テレビマークに加え、排他モードでは音量・再生・方向キー・決定・戻る・電源も割り当て可
+- **アクション**: macOS ショートカット（`shortcuts` CLI の一覧から選択）／キー送信（押している間ホールド、fn 修飾・修飾キーのみのホールド対応）／メディアキー／アプリ起動／URL／マクロ
 - **レイヤー**: MO（押している間）、TG（トグル、排他）、TO（切替）、DF（デフォルト変更）。未設定ボタンは下位レイヤーを継承、ボタンごとに「デフォルト動作／無効／透過／カスタム」
 - **仮想マイク**: リモコンのマイクボタンを押している間だけ声が「Fire TV Remote Microphone」に入る（Discord / QuickTime 等で確認）
 - **メニューバー常駐**、ログイン時自動起動、設定のインポート／エクスポート、ライト／ダーク対応
+- **表示言語**: English / 日本語（設定 → 一般 → 言語。macOS の仕様で再起動後に反映）
 - Karabiner のような全キー監視や CGEventTap は使いません。触るのはこのリモコン 1 台だけです
 
 ## 動作環境
@@ -47,7 +48,7 @@ open FireTVRemoteBridge.app
 ```
 
 ```bash
-swift build && .build/debug/FireTVTests   # テスト（141 件）
+swift build && .build/debug/FireTVTests   # テスト（156 件）
 ./build-pkg.sh                             # → dist/FireTVRemoteStudio.pkg
 ```
 
@@ -67,6 +68,11 @@ Xcode プロジェクトは不要です。`build-app.sh` は "Developer ID Appli
 | HAL ドライバ | 仮想マイク | 設定(⌘,) → マイク → インストール（管理者認証） |
 
 アプリの設定画面に現在の状態と各ボタンがあります。
+
+入力監視を許可・変更したあとは、macOS の仕様でアプリの再起動が必要です。設定画面の「再確認」は現在のプロセスの状態を表示するだけなので、
+許可後にアプリを終了して開き直してください。ad-hoc 署名のビルドは再ビルドごとに許可が無効になるため、入力監視の一覧から − で削除して再度追加するか、
+Apple Development 署名を使ってください（`build-app.sh` は `NSInputMonitoringUsageDescription` を自動で付与します。
+このキーが無いと `IOHIDCheckAccess` は許可済みでも常に denied を返します）。
 
 **Karabiner-Elements を使っている場合**: Karabiner はキーボード類を排他取得するため、このリモコンを掴んでいるとアプリは
 「別のプロセスがリモコンを専有しています」と表示します。Karabiner-Elements → Devices で "Amazon Remote" の Modify events をオフにしてください
@@ -104,7 +110,7 @@ Xcode プロジェクトは不要です。`build-app.sh` は "Developer ID Appli
 ## 仕組み
 
 ```
-HID 入力 (IOHIDManager, VID 0x0171 / PID 0x042F)
+HID 入力 (IOHIDManager, VID 0x0171 / PID 0x0413, 0x042F)
   → 通常モード: アプリが非排他で開く（macOS が処理するボタンは割り当て不可）
   → 排他モード: root helper (SMAppService LaunchDaemon) が kIOHIDOptionsTypeSeizeDevice で seize し、XPC で転送
   → レポート解析 → ButtonStateTracker（同時押し対応）

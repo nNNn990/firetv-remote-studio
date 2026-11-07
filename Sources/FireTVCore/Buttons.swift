@@ -14,27 +14,27 @@ public enum RemoteButton: String, Codable, CaseIterable, Identifiable, Hashable,
 
     public var displayName: String {
         switch self {
-        case .power: return "電源"
-        case .mic: return "マイク"
-        case .up: return "上"
-        case .down: return "下"
-        case .left: return "左"
-        case .right: return "右"
-        case .select: return "決定"
-        case .back: return "戻る"
-        case .home: return "ホーム"
-        case .menu: return "メニュー"
-        case .rewind: return "巻き戻し"
-        case .playPause: return "再生/一時停止"
-        case .fastForward: return "早送り"
-        case .volumeUp: return "音量+"
-        case .volumeDown: return "音量−"
-        case .mute: return "ミュート"
-        case .tv: return "テレビ"
-        case .a1: return "アプリ1 (A1)"
-        case .a2: return "アプリ2 (A2)"
-        case .a3: return "アプリ3 (A3)"
-        case .a4: return "アプリ4 (A4)"
+        case .power: return String(localized: "Power")
+        case .mic: return String(localized: "Microphone")
+        case .up: return String(localized: "Above")
+        case .down: return String(localized: "Below")
+        case .left: return String(localized: "Left")
+        case .right: return String(localized: "Right")
+        case .select: return String(localized: "OK")
+        case .back: return String(localized: "Back")
+        case .home: return String(localized: "Home")
+        case .menu: return String(localized: "Menu")
+        case .rewind: return String(localized: "Rewind")
+        case .playPause: return String(localized: "Play/Pause")
+        case .fastForward: return String(localized: "Fast Forward")
+        case .volumeUp: return String(localized: "Volume Up")
+        case .volumeDown: return String(localized: "Volume Down")
+        case .mute: return String(localized: "Mute")
+        case .tv: return String(localized: "Television")
+        case .a1: return String(localized: "App 1 (A1)")
+        case .a2: return String(localized: "App 2 (A2)")
+        case .a3: return String(localized: "App 3 (A3)")
+        case .a4: return String(localized: "App 4 (A4)")
         }
     }
 
@@ -110,6 +110,7 @@ public enum ButtonTable {
         .a3: ButtonCode(reportID: 0xEF, code: 0xA3),
         .a4: ButtonCode(reportID: 0xEF, code: 0xA4),
         .tv: ButtonCode(reportID: 0x02, code: 0x8D),
+        .mic: ButtonCode(reportID: 0x02, code: 0x0221),
         .up: ButtonCode(reportID: 0x01, code: 0x52),
         .down: ButtonCode(reportID: 0x01, code: 0x51),
         .left: ButtonCode(reportID: 0x01, code: 0x50),

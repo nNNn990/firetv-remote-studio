@@ -64,12 +64,39 @@ do {
 // MARK: 3. Button table
 section("button table")
 expect(ButtonTable.info(for: .a1, learned: [:]).restriction == .none, "A1 assignable")
+expect(ButtonTable.info(for: .mic, learned: [:], exclusive: true).restriction == .none, "mic assignable in exclusive mode")
+expect(ButtonTable.info(for: .mic, learned: [:], exclusive: false).restriction == .osHandled, "mic is OS-handled in normal mode")
 expect(ButtonTable.info(for: .tv, learned: [:]).restriction == .none, "TV mark assignable")
 expect(ButtonTable.info(for: .up, learned: [:]).restriction == .osHandled, "arrow is OS-handled")
 expect(ButtonTable.info(for: .playPause, learned: [:]).restriction == .osHandled, "play is OS-handled")
 expect(ButtonTable.info(for: .home, learned: [:]).restriction == .codeUnknown, "home needs learning")
 expect(ButtonTable.info(for: .home, learned: [.home: ButtonCode(reportID: 0x02, code: 0x23)]).restriction == .none, "learned consumer code assignable")
 expect(ButtonTable.info(for: .home, learned: [.home: ButtonCode(reportID: 0x01, code: 0x29)]).restriction == .osHandled, "learned keyboard code OS-handled")
+
+// MARK: 3b. Supported device models
+section("supported remote models")
+expect(HIDMonitor.productIDs.contains(0x042F), "3rd gen product ID matched")
+expect(HIDMonitor.productIDs.contains(0x0413), "2nd gen product ID matched")
+expect(HIDMonitor.modelName(for: 0x0413).contains("2nd Gen"), "2nd gen has a friendly name")
+expect(HIDMonitor.modelName(for: 0x042F).contains("3rd Gen"), "3rd gen has a friendly name")
+expect(HIDMonitor.modelName(for: 0x1234) == "Amazon Remote", "unknown product ID falls back")
+
+// MARK: 3c. Fn modifier
+section("fn key modifier")
+do {
+    let old = Data(#"{"keyCode":99,"keyName":"F3","command":false,"shift":false,"option":false,"control":false}"#.utf8)
+    let oldCombo = try JSONDecoder().decode(KeyCombo.self, from: old)
+    expect(!oldCombo.function, "old key combo decodes without fn")
+    expect(!oldCombo.modifierOnly, "old key combo decodes without modifier-only")
+    let fn = KeyCombo(keyCode: 99, keyName: "F3", function: true)
+    expect(fn.display == "fn F3", "fn shown in display")
+    expect(try JSONDecoder().decode(KeyCombo.self, from: JSONEncoder().encode(fn)) == fn, "fn round trips through config JSON")
+    expect(KeyCombo(keyCode: 99, keyName: "F3").display == "F3", "fn is off by default")
+    let fnOnly = KeyCombo(keyCode: 0, keyName: "", function: true, modifierOnly: true)
+    expect(fnOnly.display == "fn", "modifier-only fn has no key name")
+    expect(try JSONDecoder().decode(KeyCombo.self, from: JSONEncoder().encode(fnOnly)) == fnOnly, "modifier-only round trips")
+    expect(KeyCombo(keyCode: 99, keyName: "F3").modifierOnly == false, "modifier-only is off by default")
+}
 
 // MARK: 4. Layer engine
 section("layer engine")
@@ -161,7 +188,7 @@ do {
     let back = try ConfigCodec.decode(data)
     expect(back == c, "JSON round trip")
     // japanese / spaces / symbols in names
-    c.layers[1].bindings[.a1] = .shortcut(name: "日本語 名前 (テスト) #1 & \"quote\"")
+    c.layers[1].bindings[.a1] = .shortcut(name: "Japanese Name (Test) #1 & \"quote\"")
     expect(try ConfigCodec.decode(try ConfigCodec.encode(c)) == c, "unicode shortcut name round trip")
     // validation
     var bad = c
@@ -198,7 +225,7 @@ do {
 
 // MARK: 6. Shortcuts service
 section("shortcuts service")
-expect(ShortcutsService.parseList("A\n日本語 ショートカット\nName with (symbols) #1\n\n") == ["A", "日本語 ショートカット", "Name with (symbols) #1"], "list parsing")
+expect(ShortcutsService.parseList("A\nJapanese Shortcut\nName with (symbols) # 1\n\n") == ["A", "Japanese Shortcut", "Name with (symbols) #1"], "list parsing")
 do {
     let svc = ShortcutsService()
     let names = try svc.list()
@@ -208,7 +235,7 @@ do {
     _ = sem.wait(timeout: .now() + 20)
     expect(ok, "real run of FireTV-A2 succeeds")
     let sem2 = DispatchSemaphore(value: 0); var err: Error?
-    svc.run("このショートカットは存在しない-\(UUID().uuidString.prefix(4))") { r in if case .failure(let e) = r { err = e }; sem2.signal() }
+    svc.run("This shortcut does not exist -\(UUID () .uuidString.prefix (4))") { r in if case .failure(let e) = r { err = e }; sem2.signal() }
     _ = sem2.wait(timeout: .now() + 20)
     expect(err != nil, "missing shortcut reports failure: \(err?.localizedDescription ?? "")")
     // double-run guard
@@ -228,7 +255,7 @@ expect(ButtonCode(reportID: 2, code: 0x23).matches(ButtonCode(reportID: 2, code:
 expect(!ButtonCode(reportID: 1, code: 0x23).matches(ButtonCode(reportID: 2, code: 0x0223)), "different report id never matches")
 expect(ButtonTable.info(for: .up, learned: [:], exclusive: true).restriction == .none, "exclusive mode lifts OS-handled restriction")
 expect(ButtonTable.info(for: .up, learned: [:], exclusive: false).restriction == .osHandled, "normal mode keeps restriction")
-expect(PassthroughEmitter.mapping(for: ButtonCode(reportID: 2, code: 0xE9))?.label == "音量+", "volume+ maps to media key")
+expect(PassthroughEmitter.mapping(for: ButtonCode(reportID: 2, code: 0xE9))?.label == "Volume Up", "volume+ maps to media key")
 expect(PassthroughEmitter.mapping(for: ButtonCode(reportID: 1, code: 0x52))?.label == "↑", "up arrow maps to key")
 expect(PassthroughEmitter.mapping(for: ButtonCode(reportID: 2, code: 0x0223)) == nil, "AC Home has no macOS default")
 expect(PassthroughEmitter.mapping(for: ButtonCode(reportID: 0xEF, code: 0xA1)) == nil, "vendor keys have no default")
@@ -243,7 +270,7 @@ do {
     expect(e.press(.mute) == [] && e.release(.mute) == [], "disabled button does nothing")
     expect(e.press(.volumeUp) == [.execute(.shortcut(name: "S"))], "L0 custom action")
     _ = e.release(.volumeUp)
-    _ = e.update(layers: ls, defaultLayer: 1)
+    e.update(layers: ls, defaultLayer: 1)
     expect(e.resolve(.volumeUp) == .passthrough, "L1 explicit default overrides L0 custom")
     _ = e.press(.volumeDown)
     expect(e.releaseAll().contains(.release(.passthrough)), "releaseAll releases held passthrough")
@@ -306,7 +333,7 @@ do {
     // A1 on layer 0
     ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA1, 0, 0]); ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA1, 0, 0]); ctl.inject(reportID: 0xEF, bytes: [0xEF, 0, 0, 0])
     pump()
-    expect(executed == ["ショートカット FireTV-A1"], "A1 executes once despite repeat report")
+    expect(executed == ["Shortcut FireTV-A1"], "A1 executes once despite repeat report")
     expect(ctl.lastPressed == .a1, "lastPressed updated")
     // hold A2 (MO1), press A1 → layer 1 binding
     ctl.inject(reportID: 0xEF, bytes: [0xEF, 0xA2, 0, 0])
@@ -331,15 +358,15 @@ do {
     ctl2.setMonitoring(false)
     expect(ctl2.config.layers[1].bindings[.a1] == .shortcut(name: "FireTV-A4") && ctl2.config.learnedCodes[.home] != nil, "config persisted across restart")
     // missing shortcut warning
-    ctl2.assign(.shortcut(name: "存在しないやつ"), to: .a4, layer: 0)
+    ctl2.assign(.shortcut(name: "Nonexistent shortcut"), to: .a4, layer: 0)
     let deadline = Date().addingTimeInterval(10)
     while ctl2.shortcutNames.isEmpty && ctl2.shortcutsLoadError == nil && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
-    expect(ctl2.missingShortcuts == ["存在しないやつ"], "missing shortcut detected")
+    expect(ctl2.missingShortcuts == ["Nonexistent shortcut"], "missing shortcut detected")
     // corrupted file recovery
     try Data("{{{".utf8).write(to: store.url)
     let ctl3 = RemoteController(store: store, monitor: HIDMonitor(), shortcuts: ShortcutsService())
     ctl3.setMonitoring(false)
-    expect(ctl3.startupNotices.contains { $0.contains("壊れて") } && ctl3.config.layers.count == 4, "corrupt config → defaults + notice")
+    expect(ctl3.startupNotices.contains { $0.contains("Corrupted") } && ctl3.config.layers.count == 4, "corrupt config → defaults + notice")
     try? FileManager.default.removeItem(at: tmp)
 }
 

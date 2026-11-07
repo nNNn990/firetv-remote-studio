@@ -71,8 +71,8 @@ public final class MicAudioEngine {
 
     /// Mic button released: accept the few late packets, then go silent.
     public func stop() {
-        queue.async {
-            guard self.state == .active else { return }
+        queue.async { [weak self] in
+            guard let self, self.state == .active else { return }
             self.state = .draining
             let w = DispatchWorkItem { [weak self] in
                 guard let self else { return }
@@ -90,7 +90,7 @@ public final class MicAudioEngine {
     /// One INPUT report 0xF0 (payload without the report ID = one Opus packet).
     public func push(packet: [UInt8]) {
         queue.async {
-            guard self.state != .idle, let d = self.decoder, !packet.isEmpty else { return }
+            guard self.state != .idle, self.decoder != nil, !packet.isEmpty else { return }
             // Packet loss concealment: the remote sends one 20 ms frame per packet with no sequence
             // number, so missing frames are inferred from wall-clock time since the first packet
             // (the remote needs ~200 ms after the enable command before audio starts).

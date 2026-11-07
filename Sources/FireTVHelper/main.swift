@@ -16,7 +16,10 @@ final class Seizer {
     func start() -> (Int32, String) {
         if manager != nil { return (0, "already running") }
         let m = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
-        IOHIDManagerSetDeviceMatching(m, [kIOHIDVendorIDKey: FireTVIPC.vendorID, kIOHIDProductIDKey: FireTVIPC.productID] as CFDictionary)
+        let matches: [[String: Int]] = FireTVIPC.productIDs.map {
+            [kIOHIDVendorIDKey: FireTVIPC.vendorID, kIOHIDProductIDKey: $0]
+        }
+        IOHIDManagerSetDeviceMatchingMultiple(m, matches as CFArray)
         let ctx = Unmanaged.passUnretained(self).toOpaque()
         IOHIDManagerRegisterDeviceMatchingCallback(m, { ctx, _, _, dev in Unmanaged<Seizer>.fromOpaque(ctx!).takeUnretainedValue().matched(dev) }, ctx)
         IOHIDManagerRegisterDeviceRemovalCallback(m, { ctx, _, _, dev in Unmanaged<Seizer>.fromOpaque(ctx!).takeUnretainedValue().removed(dev) }, ctx)
@@ -46,11 +49,22 @@ final class Seizer {
         return bytes.withUnsafeMutableBufferPointer { IOHIDDeviceSetReport(d, kIOHIDReportTypeOutput, CFIndex(id), $0.baseAddress!, $0.count) }
     }
 
-    private func name(_ d: IOHIDDevice) -> String { (IOHIDDeviceGetProperty(d, kIOHIDProductKey as CFString) as? String) ?? "Amazon Remote" }
+    private func productID(_ d: IOHIDDevice) -> Int {
+        (IOHIDDeviceGetProperty(d, kIOHIDProductIDKey as CFString) as? Int) ?? 0
+    }
+
+    private func rawName(_ d: IOHIDDevice) -> String {
+        (IOHIDDeviceGetProperty(d, kIOHIDProductKey as CFString) as? String) ?? "Amazon Remote"
+    }
+
+    /// Friendly model name, sent to the app as the connected-device status.
+    private func name(_ d: IOHIDDevice) -> String {
+        FireTVRemoteModel.name(for: productID(d), fallback: rawName(d))
+    }
 
     private func matched(_ d: IOHIDDevice) {
         pending.insert(d)
-        client?.log("helper: device matched \(name(d))")
+        client?.log("helper: device matched \(name(d)) [\(rawName(d)) \(String(format: "0x%04X", productID(d)))]")
         if !tryOpen(d) { scheduleRetry() }
     }
     private func removed(_ d: IOHIDDevice) {
@@ -65,8 +79,8 @@ final class Seizer {
         guard r == kIOReturnSuccess else {
             let why: String
             switch r {
-            case kIOReturnExclusiveAccess: why = "別のプロセスが専有中 (Karabiner-Elements の Modify events をオフにしてください)"
-            case kIOReturnNotPrivileged: why = "権限不足 (helper が root で動作していません)"
+            case kIOReturnExclusiveAccess: why = "Another process holds it (turn off Modify events in Karabiner-Elements)"
+            case kIOReturnNotPrivileged: why = "Insufficient privileges (helper not running as root)"
             default: why = String(format: "IOHIDDeviceOpen(seize) failed 0x%08x", UInt32(bitPattern: r))
             }
             client?.statusChanged(status: 2, message: why)

@@ -56,7 +56,7 @@ static void MonitorRingFile(void) {
     if (stat(MICRING_PATH, &st) != 0) { return; }
     if ((size_t)st.st_size < MICRING_FILE_SIZE) return;
     if (gRing && st.st_ino == gRingInode) return;          /* same file, mapping still valid */
-    int fd = open(MICRING_PATH, O_RDONLY);
+    int fd = open(MICRING_PATH, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
     if (fd < 0) { os_log_error(gLog, "ring open failed errno=%d", errno); return; }
     void *p = mmap(NULL, MICRING_FILE_SIZE, PROT_READ, MAP_SHARED, fd, 0);
     close(fd);

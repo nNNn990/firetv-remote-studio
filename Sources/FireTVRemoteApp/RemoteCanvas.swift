@@ -5,12 +5,20 @@ import FireTVCore
 struct RemoteCanvas: View {
     @EnvironmentObject var ctl: RemoteController
     @EnvironmentObject var editor: EditorState
+    @State private var hoveredDpadEdge: Edge?
 
-    enum Shape { case circle, pill, dpad(Edge) }
+    enum Shape {
+        case circle, pill, dpad(Edge)
+        var dpadEdge: Edge? { if case .dpad(let e) = self { return e }; return nil }
+    }
     struct Spot { let b: RemoteButton; let x: CGFloat; let y: CGFloat; let w: CGFloat; let h: CGFloat; let shape: Shape; let symbol: String? }
 
     static let bodyW: CGFloat = 100, bodyH: CGFloat = 380
     static let dpadC = CGPoint(x: 50, y: 92), dpadR: CGFloat = 32
+
+    static func button(for edge: Edge) -> RemoteButton {
+        switch edge { case .top: return .up; case .bottom: return .down; case .leading: return .left; case .trailing: return .right }
+    }
     static let spots: [Spot] = [
         Spot(b: .power, x: 20, y: 24, w: 14, h: 14, shape: .circle, symbol: "power"),
         Spot(b: .mic, x: 50, y: 24, w: 16, h: 16, shape: .circle, symbol: "mic.fill"),
@@ -42,7 +50,19 @@ struct RemoteCanvas: View {
             let s = min((geo.size.width - 2 * pad) / Self.bodyW, (geo.size.height - 2 * pad) / Self.bodyH)
             ZStack {
                 RemoteBody(scale: s)
-                ForEach(Self.spots, id: \.b) { spot in
+                // D-pad visuals are drawn without their own pointer handling;
+                // one ring-shaped hit area below decides which edge is hovered.
+                ForEach(Self.spots.filter { $0.shape.dpadEdge != nil }, id: \.b) { spot in
+                    RemoteKey(spot: spot, s: s, externalHover: hoveredDpadEdge == spot.shape.dpadEdge)
+                        .position(x: spot.x * s, y: spot.y * s)
+                        .allowsHitTesting(false)
+                }
+                DPadHitArea(scale: s, hoveredEdge: $hoveredDpadEdge) { edge in
+                    withAnimation(Theme.anim) { editor.selectedButton = Self.button(for: edge) }
+                }
+                .position(x: Self.dpadC.x * s, y: Self.dpadC.y * s)
+                // Everything else, including OK (which must sit above the ring hit area).
+                ForEach(Self.spots.filter { $0.shape.dpadEdge == nil }, id: \.b) { spot in
                     RemoteKey(spot: spot, s: s)
                         .position(x: spot.x * s, y: spot.y * s)
                 }
@@ -57,7 +77,7 @@ struct RemoteCanvas: View {
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(Theme.anim) { editor.selectedButton = nil } }   // click empty space to deselect
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Fire TV リモコン")
+        .accessibilityLabel("Fire TV remote control")
     }
 }
 
@@ -101,9 +121,66 @@ struct DPadWedge: SwiftUI.Shape {
     }
 }
 
+/// Ring-shaped hit area for the D-pad. A single view owns pointer interaction,
+/// so the four overlapping wedge buttons can no longer steal each other's hover.
+struct DPadHitArea: View {
+    let scale: CGFloat
+    @Binding var hoveredEdge: Edge?
+    let onSelect: (Edge) -> Void
+
+    @EnvironmentObject var ctl: RemoteController
+    @EnvironmentObject var editor: EditorState
+
+    private var d: CGFloat { RemoteCanvas.dpadR * 2 * scale }
+    private var inner: CGFloat { d * 0.24 }
+
+    private var helpText: String {
+        guard let e = hoveredEdge else { return "" }
+        let b = RemoteCanvas.button(for: e)
+        return RemoteKey.helpText(for: b, info: ctl.info(for: b),
+                                  binding: ctl.config.layers[safe: editor.editingLayer]?.bindings[b],
+                                  layer: editor.editingLayer)
+    }
+
+    var body: some View {
+        Color.clear
+            .frame(width: d, height: d)
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let p):
+                    let e = edge(at: p)
+                    if hoveredEdge != e { hoveredEdge = e }
+                case .ended:
+                    if hoveredEdge != nil { hoveredEdge = nil }
+                }
+            }
+            .highPriorityGesture(SpatialTapGesture().onEnded { value in
+                if let e = edge(at: value.location) { onSelect(e) }
+            })
+            .help(helpText)
+            .accessibilityHidden(true)
+    }
+
+    private func edge(at p: CGPoint) -> Edge? {
+        let c = CGPoint(x: d / 2, y: d / 2)
+        let dx = p.x - c.x, dy = p.y - c.y
+        let r = (dx * dx + dy * dy).squareRoot()
+        guard r >= inner, r <= d / 2 else { return nil }
+        let angle = atan2(dy, dx) * 180 / .pi
+        switch angle {
+        case -45..<45: return .trailing
+        case 45..<135: return .bottom
+        case -135..<(-45): return .top
+        default: return .leading
+        }
+    }
+}
+
 struct RemoteKey: View {
     let spot: RemoteCanvas.Spot
     let s: CGFloat
+    var externalHover: Bool? = nil
     @EnvironmentObject var ctl: RemoteController
     @EnvironmentObject var editor: EditorState
     @Environment(\.colorScheme) var scheme
@@ -126,6 +203,9 @@ struct RemoteKey: View {
             .scaleEffect(pressed ? 0.94 : 1)
         }
         .buttonStyle(.plain)
+        // The four D-pad keys share one square frame; without a shape-based
+        // hit area the topmost (right) key swallows hover and clicks for all.
+        .contentShape(AnyShape(hitShape))
         .onHover { hover = $0 }
         .animation(Theme.anim, value: pressed)
         .animation(Theme.anim, value: hover)
@@ -148,10 +228,11 @@ struct RemoteKey: View {
         }
     }
 
+    var isHovered: Bool { externalHover ?? hover }
     var fillColor: Color {
         if pressed { return Theme.accent.opacity(0.55) }
         if selected { return Theme.accent.opacity(0.30) }
-        if hover { return Color.white.opacity(scheme == .dark ? 0.16 : 0.26) }
+        if isHovered { return Color.white.opacity(scheme == .dark ? 0.16 : 0.26) }
         if case .dpad = spot.shape { return Color.white.opacity(0.04) }
         return Color.white.opacity(assignable ? (scheme == .dark ? 0.10 : 0.18) : 0.05)
     }
@@ -220,21 +301,26 @@ struct RemoteKey: View {
         let d = RemoteCanvas.dpadR * 0.64 * s
         switch e { case .top: return CGSize(width: 0, height: -d); case .bottom: return CGSize(width: 0, height: d); case .leading: return CGSize(width: -d, height: 0); case .trailing: return CGSize(width: d, height: 0) }
     }
-    var helpText: String {
-        var t = spot.b.displayName
+    static func helpText(for b: RemoteButton, info: ButtonInfo, binding: Action?, layer: Int) -> String {
+        var t = b.displayName
         if let c = info.code { t += "  [\(c)]" }
         switch info.restriction {
-        case .osHandled: t += "\nmacOS 標準キーとして動作（割り当て不可）"
-        case .codeUnknown: t += "\n未学習（デバイス画面で学習）"
-        case .none: t += "\n" + (binding.map { $0.display } ?? (editor.editingLayer == 0 ? "デフォルト動作（未設定）" : "下位レイヤーを継承"))
+        case .osHandled: t += String(localized: "\nActs as macOS standard key (not assignable)")
+        case .codeUnknown: t += String(localized: "\nUnlearned (learn on device screen)")
+        case .none:
+            let fallback = layer == 0 ? String(localized: "Default Behavior (unset)") : String(localized: "Inherit lower layer")
+            t += "\n" + (binding.map { $0.display } ?? fallback)
         }
         return t
     }
+    var helpText: String {
+        Self.helpText(for: spot.b, info: info, binding: binding, layer: editor.editingLayer)
+    }
     var accessibilityValue: String {
         switch info.restriction {
-        case .osHandled: return "割り当て不可"
-        case .codeUnknown: return "未学習"
-        case .none: return binding?.display ?? "未設定"
+        case .osHandled: return String(localized: "Not assignable")
+        case .codeUnknown: return String(localized: "Not learned")
+        case .none: return binding?.display ?? String(localized: "Unset")
         }
     }
 }
